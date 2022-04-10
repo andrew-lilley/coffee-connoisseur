@@ -19,6 +19,8 @@ type Props = {
 };
 
 export const getStaticProps: GetStaticProps = async () => {
+  // Write server-side code directly, see https://nextjs.org/docs/basic-features/data-fetching/get-static-props#write-server-side-code-directly.
+  
   // Get the coffee stores.
   const coffeeStores = await fetchCoffeeStores();
 
@@ -42,11 +44,21 @@ const Home: NextPage<Props> = (props) => {
   // Get and save the nearby coffee stores when the user location is provided.
   useEffect(() => {
     const fetchNearbyCoffeeStores = async() => {
-      const nearbyCoffeeStores = await fetchCoffeeStores(latLong, 12);
+
+      // Make call to serverless function (API).
+      const response = await fetch(
+        `/api/getCoffeeStoresByLocation?latLong=${latLong}&limit=12`
+      );
+
+      const nearbyCoffeeStores = await response.json();
+
       setCoffeeStoresData({
         type: StoreActionTypes.SET_COFFEE_STORES,
         payload: nearbyCoffeeStores,
       });
+
+      // Unset error if it has been set.
+      setCoffeeStoresError('');
     }
 
     if (latLong) {
