@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import type {
   GetStaticProps,
   GetStaticPaths,
@@ -7,10 +8,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import cls from 'classnames';
 import { CoffeeStore } from '../../types/coffeeStore';
+import { fetchCoffeeStores } from '../../lib/coffee-stores';
+import { useStoreContext } from '../../store/store-context';
+import { isEmpty } from '../../utils/helper-functions';
 import styles from '../../styles/CoffeeStore.module.scss';
-import coffeeStoresData from '../../data/coffee-stores.json';
 
 /**
  * Define the props for the component.
@@ -21,22 +23,30 @@ type Props = {
 
 export const getStaticProps: GetStaticProps = async (context) => {
   const params = context.params;
+
+  // Get the coffee stores.
+  const coffeeStores = await fetchCoffeeStores();
+
+  // Find the coffee store by id from pre rendered data.
+  const findCoffeeStoreById = coffeeStores.find((coffeeStore) => params && coffeeStore.id.toString() === params.id)
+
   return {
     props: {
-      coffeeStore: coffeeStoresData.find(
-        (coffeeStore) => params && coffeeStore.id.toString() === params.id
-      ),
+      coffeeStore: findCoffeeStoreById ? findCoffeeStoreById : {},
     },
   };
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  const paths = coffeeStoresData.map((coffeeStore) => {
+  // Get the coffee stores.
+  const coffeeStores = await fetchCoffeeStores();
+ 
+  const paths = coffeeStores.map((coffeeStore) => {
     return {
       params: {
         id: coffeeStore.id.toString(),
-      }
-    }
+      },
+    };
   });
   return {
     paths,
@@ -44,16 +54,32 @@ export const getStaticPaths: GetStaticPaths = async () => {
   };
 };
 
-const CoffeeStore: NextPage<Props> = (props) => {
+const CoffeeStore: NextPage<Props> = (initialProps) => {
+  const {
+    coffeeStoresData: { coffeeStores },
+  } = useStoreContext();
+
   const router = useRouter();
+  const id = router.query.id;
 
-  if (router.isFallback) {
-    return <div>Loading...</div>
-  }
+  const [coffeeStore, setCoffeeStore] = useState(
+    initialProps.coffeeStore || {}
+  );
 
-  const { address, name, neighbourhood, imgUrl } =
-    props.coffeeStore as CoffeeStore;
+  // Set the current coffee store to state.
+  useEffect(() => {
+    if (isEmpty(coffeeStore) && coffeeStores.length > 0) {
+      const findCoffeeStoreById = coffeeStores.find(
+        (coffeeStore) => coffeeStore.id.toString() === id
+      );
+      if (findCoffeeStoreById) {
+        setCoffeeStore(findCoffeeStoreById);
+      }
+    }
+  }, [setCoffeeStore, coffeeStore, coffeeStores, id]);
 
+  // Deconstruct the coffee store.
+  const { address, name, neighbourhood, imgUrl } = coffeeStore as CoffeeStore;
 
   const handleUpvoteButton = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -83,21 +109,24 @@ const CoffeeStore: NextPage<Props> = (props) => {
             }
             width={600}
             height={360}
+            layout='intrinsic'
             className={styles.storeImg}
             alt={name}
           ></Image>
         </div>
 
-        <div className={cls('glass', styles.col2)}>
-          <div className={styles.iconWrapper}>
-            <Image
-              src='/static/icons/places.svg'
-              width='24'
-              height='24'
-              alt='places icon'
-            />
-            <p className={styles.text}>{address}</p>
-          </div>
+        <div className={`glass ${styles.col2}`}>
+          {address && (
+            <div className={styles.iconWrapper}>
+              <Image
+                src='/static/icons/places.svg'
+                width='24'
+                height='24'
+                alt='places icon'
+              />
+              <p className={styles.text}>{address}</p>
+            </div>
+          )}
           {neighbourhood && (
             <div className={styles.iconWrapper}>
               <Image

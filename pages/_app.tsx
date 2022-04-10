@@ -1,10 +1,13 @@
-import '../styles/globals.scss'
-import type { AppProps } from 'next/app'
+import '../styles/globals.scss';
+import type { AppProps } from 'next/app';
+import StoreProvider from '../store/store-context';
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
     <div>
-      <Component {...pageProps} />
+      <StoreProvider>
+        <Component {...pageProps} />
+      </StoreProvider>
     </div>
   );
 }
