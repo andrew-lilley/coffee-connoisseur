@@ -11,8 +11,9 @@ import Head from 'next/head';
 import { CoffeeStore } from '../../types/coffeeStore';
 import { fetchCoffeeStores } from '../../lib/coffee-stores';
 import { useStoreContext } from '../../store/store-context';
-import { isEmpty } from '../../utils/helper-functions';
+import { fetcher, isEmpty } from '../../utils/helper-functions';
 import styles from '../../styles/CoffeeStore.module.scss';
+import useSWR from 'swr';
 
 /**
  * Define the props for the component.
@@ -66,9 +67,13 @@ const CoffeeStore: NextPage<Props> = (initialProps) => {
   // being set.
   const currentCoffeeStoreSet = useRef(false);
 
+  // Coffee Store state.
   const [coffeeStore, setCoffeeStore] = useState(
     initialProps.coffeeStore || {}
   );
+
+  // Voting count state.
+  const [votingCount, setVotingCount] = useState(0);
 
   // Create the coffee store.
   const handleCreateCoffeeStore = async (coffeeStore: CoffeeStore) => {
@@ -115,7 +120,7 @@ const CoffeeStore: NextPage<Props> = (initialProps) => {
           currentCoffeeStoreSet.current = true;
         }
       }
-    } else if (!currentCoffeeStoreSet.current) {
+    } else if (!currentCoffeeStoreSet.current && initialProps.coffeeStore) {
       // SSG (Statix Site Generation) data can also be saved so that we can save
       // voting stats against the record.
       handleCreateCoffeeStore(initialProps.coffeeStore);
@@ -123,13 +128,53 @@ const CoffeeStore: NextPage<Props> = (initialProps) => {
     }
   }, [initialProps, coffeeStore, coffeeStores, id]);
 
+  const { data, error } = useSWR(`/api/getCoffeeStoreById?id=${id}`, fetcher);
+
+  useEffect(() => {
+    if (data && data.length > 0) {
+      setCoffeeStore(data[0]);
+      setVotingCount(data[0].voting);
+    }
+  }, [data]);
+
+  // Accommodate a failover response.
+  if (router.isFallback) {
+    return <div>Loading...</div>;
+  }
+
   // Deconstruct the coffee store.
   const { address, name, neighbourhood, imgUrl } = coffeeStore as CoffeeStore;
 
-  const handleUpvoteButton = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleUpvoteButton = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    // todo.
+    try {
+      const response = await fetch('/api/favouriteCoffeeStoreById', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id,
+        }),
+      });
+
+      const dbCoffeeStore = await response.json();
+
+      if (dbCoffeeStore && dbCoffeeStore.length > 0) {
+        setVotingCount(prevState => prevState + 1);
+      }
+    } catch (err) {
+      console.error('Error upvoting the coffee store', err);
+    }
   };
+
+  if (error) {
+    return (
+      <div>
+        <p>Something went wrong retrieving the coffee store page</p>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.layout}>
@@ -190,7 +235,7 @@ const CoffeeStore: NextPage<Props> = (initialProps) => {
               height='24'
               alt='star icon'
             />
-            <p className={styles.text}>0</p>
+            <p className={styles.text}>{votingCount}</p>
           </div>
 
           <button className={styles.upvoteButton} onClick={handleUpvoteButton}>

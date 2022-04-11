@@ -1,6 +1,13 @@
 import Airtable, { FieldSet, Records, Record } from 'airtable';
 import { CoffeeStore } from '../types/coffeeStore';
 
+// Extend the coffee store interface to add
+// a record id to support updating Airtable records
+// while maintaining the rest of the expected structure.
+interface AirTableCoffeeStore extends CoffeeStore {
+  recordId: string;
+}
+
 const base = new Airtable({
   apiKey: process.env.NEXT_PUBLIC_AIRTABLE_API_KEY,
 }).base(
@@ -13,9 +20,9 @@ const table = base('coffee-stores');
 
 const getMinifiedRecord = (record: Record<FieldSet>) => {
   return {
-    // recordId: record.id,
+    recordId: record.id,
     ...record.fields,
-  } as CoffeeStore;
+  } as AirTableCoffeeStore;
 };
 
 const getMinifiedRecords = (records: Records<FieldSet>) => {

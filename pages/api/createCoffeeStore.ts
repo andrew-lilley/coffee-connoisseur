@@ -6,6 +6,7 @@ import {
   findRecordByFilter,
 } from '../../lib/airtable';
 import { CoffeeStore } from '../../types/coffeeStore';
+import { getErrorMessage } from '../../utils/helper-functions';
 
 type ErrorResponse = {
   message: string;
@@ -50,17 +51,12 @@ export default async function handler(
         }
       } else {
         res.status(400);
-        res.json({ message: 'The id of coffee store is missing from the request' });
+        res.json({ message: 'The id of the coffee store is missing from the request' });
       }
     } catch (error) {
-      let message;
-      if (error instanceof Error) {
-        message = error.message;
-      } else {
-        message = String(error);
-      }
       console.error(error);
 
+      const message = getErrorMessage(error);
       res.status(500);
       res.json({
         message: `There has been an issue trying to create or find a coffee store, ${message}`,

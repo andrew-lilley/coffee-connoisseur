@@ -1,14 +1,14 @@
 /**
  * Define a coffee store.
  */
-export type CoffeeStore = {
+export interface CoffeeStore {
   id: string;
   name: string;
   imgUrl: string;
   websiteUrl: string;
   address: string;
   neighbourhood: string;
-  voting?: number;
+  voting: number;
 };
 
 /**
