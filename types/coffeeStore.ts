@@ -8,6 +8,7 @@ export type CoffeeStore = {
   websiteUrl: string;
   address: string;
   neighbourhood: string;
+  voting?: number;
 };
 
 /**

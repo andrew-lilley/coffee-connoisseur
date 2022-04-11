@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type {
   GetStaticProps,
   GetStaticPaths,
@@ -62,21 +62,66 @@ const CoffeeStore: NextPage<Props> = (initialProps) => {
   const router = useRouter();
   const id = router.query.id;
 
+  // Make sure that we don't look through useEffect while states are
+  // being set.
+  const currentCoffeeStoreSet = useRef(false);
+
   const [coffeeStore, setCoffeeStore] = useState(
     initialProps.coffeeStore || {}
   );
 
+  // Create the coffee store.
+  const handleCreateCoffeeStore = async (coffeeStore: CoffeeStore) => {
+    try {
+      const { id, name, address, neighbourhood, imgUrl } = coffeeStore;
+      const response = await fetch('/api/createCoffeeStore', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id,
+          name,
+          voting: 0,
+          imgUrl,
+          neighbourhood: neighbourhood || '',
+          address: address || '',
+        }),
+      });
+
+      return await response.json();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   // Set the current coffee store to state.
   useEffect(() => {
-    if (isEmpty(coffeeStore) && coffeeStores.length > 0) {
-      const findCoffeeStoreById = coffeeStores.find(
-        (coffeeStore) => coffeeStore.id.toString() === id
-      );
-      if (findCoffeeStoreById) {
-        setCoffeeStore(findCoffeeStoreById);
-      }
+    // If the id has changed, we can run through the set state code below.
+    if (!isEmpty(coffeeStore) && coffeeStore.id !== id) {
+      currentCoffeeStoreSet.current = false;
     }
-  }, [setCoffeeStore, coffeeStore, coffeeStores, id]);
+
+    // If coffee store is not SSG, save to store state.
+    if (isEmpty(initialProps.coffeeStore)) {
+      // Set the coffee store state if it can be loccated in the store context.
+      if (!currentCoffeeStoreSet.current && coffeeStores.length > 0) {
+        const findCoffeeStoreById = coffeeStores.find(
+          (coffeeStore) => coffeeStore.id.toString() === id
+        );
+        if (findCoffeeStoreById) {
+          setCoffeeStore(findCoffeeStoreById);
+          handleCreateCoffeeStore(findCoffeeStoreById);
+          currentCoffeeStoreSet.current = true;
+        }
+      }
+    } else if (!currentCoffeeStoreSet.current) {
+      // SSG (Statix Site Generation) data can also be saved so that we can save
+      // voting stats against the record.
+      handleCreateCoffeeStore(initialProps.coffeeStore);
+      currentCoffeeStoreSet.current = true;
+    }
+  }, [initialProps, coffeeStore, coffeeStores, id]);
 
   // Deconstruct the coffee store.
   const { address, name, neighbourhood, imgUrl } = coffeeStore as CoffeeStore;
